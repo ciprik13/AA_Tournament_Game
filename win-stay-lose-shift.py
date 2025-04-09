@@ -1,7 +1,4 @@
-from __future__ import annotations
-
-
-def strategy(my_history: list[int], opponent_history: list[int], rounds: int | None) -> int:
+def strategy(my_history: 'list[int]', opponent_history: 'list[int]', rounds: 'int | None') -> int:
     """
     Win-Stay, Lose-Shift (Pavlov) strategy.
     1) If this is the first move, cooperate.
