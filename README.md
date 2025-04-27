@@ -1,43 +1,61 @@
-# Win-Stay, Lose-Shift (Pavlov)
+# Win-Stay, Lose-Shift with Adaptive Opponent Selection
 
 ### Description
 
-1. **Initial Setup**  
-   - The function signature is `strategy(my_history: list[int], opponent_history: list[int], rounds: int | None) -> int`.  
-   - `my_history` and `opponent_history` represent all past moves for the player and the opponent, respectively (`1` for cooperate, `0` for defect).  
-   - The parameter `rounds` is not strictly used here, but it remains part of the signature.
+This strategy is an enhanced version of **Win-Stay, Lose-Shift (Pavlov)** adapted for the second round of the tournament, where opponent selection is allowed.
 
-2. **First Move**  
-   - If no rounds have been played yet (`len(my_history) == 0`), the strategy **cooperates** (returns `1`).
+1. **Move Decision (Pavlov Logic)**  
+   - If no rounds have been played yet (`len(my_history) == 0`), the strategy **cooperates** (`1`).
+   - Otherwise, it analyzes the last move:
+     - (Defect, Defect) ⇒ payoff = 1 (lose)
+     - (Defect, Cooperate) ⇒ payoff = 5 (win)
+     - (Cooperate, Defect) ⇒ payoff = 0 (lose)
+     - (Cooperate, Cooperate) ⇒ payoff = 3 (win)
+   - **Win-Stay**: If the payoff was 3 or 5, **repeat** the previous move.
+   - **Lose-Shift**: If the payoff was 0 or 1, **switch** the move.
 
-3. **Identifying the Previous Payoff**  
-   - Pavlov (Win-Stay, Lose-Shift) is based on whether you “did well” in the previous round. We figure out the payoff from the last moves of both players:
-     - (D, D) ⇒ payoff = 1 (lose)
-     - (D, C) ⇒ payoff = 5 (win)
-     - (C, D) ⇒ payoff = 0 (lose)
-     - (C, C) ⇒ payoff = 3 (win)
+2. **Opponent Selection**  
+   - After each move, the strategy selects the next opponent based on their behavior.
+   - It chooses the opponent with the **highest cooperation rate** (percentage of cooperative moves against us).
+   - If multiple opponents have the same cooperation rate, it selects the one with the smallest ID.
+   - If the current opponent has recently (in the last 3 moves) **defected 2 or more times**, the strategy **avoids** continuing with them even if their overall cooperation rate is high.
+   - Opponents with 200 rounds already played are excluded from selection.
 
-4. **Decision Logic**  
-   - **Win-Stay**: If your last payoff was “good” (3 or 5), **repeat** your last move.  
-   - **Lose-Shift**: If your last payoff was “bad” (0 or 1), **switch** your move (from cooperate to defect or vice versa).
-
-5. **Move Return**  
-   - Based on the computed payoff, return `1` (cooperate) or `0` (defect).
-
+3. **Function Signature**  
+   ```python
+   def strategy_round_2(opponent_id: int, my_history: dict[int, list[int]], opponents_history: dict[int, list[int]]) -> tuple[int, int]:
+   move: 0 (defect) or 1 (cooperate).
+   next_opponent: ID of the selected opponent for the next round.
+    ```
 ### Analysis
 
-- **Immediate Recovery**  
-  If you and your opponent ever both defect (payoff = 1), Pavlov sees this as a “lose” and switches to cooperation next round. This can quickly break a chain of mutual defection.
+#### Immediate Recovery
+If mutual defection occurs (both defect), the strategy quickly switches to cooperation, breaking chains of low-payoff rounds.
 
-- **Exploiting Cooperation**  
-  If mutual cooperation yields a “win” (3 points each), Pavlov will stay cooperating. This locks in a high payoff when facing a cooperative strategy.
+#### Exploiting Cooperation
+When facing cooperative opponents, it maintains cooperation to consistently achieve high scores (3 points per round).
 
-- **Punishing Defection**  
-  Pavlov also automatically exploits a perpetually cooperating opponent, but if the opponent defects, Pavlov eventually defects back—unless mutual defection triggers it to revert to cooperation.
+#### Retaliating Against Betrayal
+If an opponent defects, the strategy automatically retaliates by switching its move.  
+If mutual defection continues, it attempts recovery by cooperating.
 
-- **Simplicity & Effectiveness**  
-  With only a single round of memory (the last moves), Pavlov can effectively respond to the opponent’s behavior and adapt. It often performs strongly in tournaments similar to Generous Tit for Tat.
+#### Dynamic Opponent Management
+In addition to adapting moves, the strategy monitors opponents dynamically.  
+If an opponent begins defecting too often, it proactively abandons them in favor of more reliable opponents.
 
-In many tournaments, **Pavlov** finds a balance between retaliation and cooperation, allowing it to do well against a wide variety of opposing strategies.
+#### Maximizing Long-Term Scores
+By selectively playing against the most cooperative players and reacting to recent betrayal, the strategy aims to maximize the average score over all rounds.
+
+#### Simplicity & Efficiency
+- Uses only the last few moves to make decisions.
+- Executes quickly within the time and memory constraints.
+- No external libraries or random factors involved in the algorithm itself.
 
 ---
+
+### Expected Behavior in Tournament
+
+In tournaments where opponents are generally cooperative, this strategy is expected to maintain a score close to 3 points per round.  
+Against aggressive or deceptive opponents, it dynamically adapts by changing partners to avoid prolonged losses.
+
+This balance between adaptability, cooperation, and opponent selection makes it a highly effective choice for the second round format.
